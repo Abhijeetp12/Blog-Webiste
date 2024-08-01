@@ -55,7 +55,7 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // Set up EJS as the templating engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-
+app.use(express.static("public"));
 // Middleware to ensure database connection before handling requests
 app.use(async (req, res, next) => {
   try {
