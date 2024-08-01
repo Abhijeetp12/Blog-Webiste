@@ -3,8 +3,13 @@ import bodyParser from "body-parser";
 import mongoose from "mongoose";
 import { config } from 'dotenv';
 import cors from "cors";
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 config();  // Initialize dotenv to use environment variables
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -16,10 +21,19 @@ async function connectToDatabase() {
     return cachedDb;
   }
 
-  const db = await mongoose.connect(process.env.MONGODB_URI);
-  mongoose.set('maxTimeMS', 5000);  // 5 seconds timeout
-  cachedDb = db;
-  return db;
+  try {
+    const db = await mongoose.connect(process.env.MONGODB_URI, {
+      useNewUrlParser: true,
+      useUnifiedTopology: true,
+      serverSelectionTimeoutMS: 5000
+    });
+    mongoose.set('maxTimeMS', 5000);  // 5 seconds timeout
+    cachedDb = db;
+    return db;
+  } catch (error) {
+    console.error('Database connection error:', error);
+    throw error;
+  }
 }
 
 app.set('views', path.join(__dirname, 'views'));
@@ -39,8 +53,18 @@ app.use(express.static("public"));
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(cors());
 
-// Connect to the database before setting up routes
-connectToDatabase().then(() => {
+// Error handling for unhandled promises and exceptions
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+});
+
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+});
+
+// Wrap the main application logic in a try-catch block
+try {
+  await connectToDatabase();
   console.log("Connected to MongoDB");
 
   // Routes
@@ -125,12 +149,14 @@ connectToDatabase().then(() => {
     }
   });
 
-  app.listen(port, () => {
-    console.log(`Listening on port ${port}`);
-  });
-}).catch((err) => {
-  console.error("Error connecting to MongoDB", err);
-});
+  // Only start the server if we're not in a Vercel serverless environment
+  if (process.env.VERCEL !== '1') {
+    app.listen(port, () => {
+      console.log(`Listening on port ${port}`);
+    });
+  }
+} catch (error) {
+  console.error("Application startup error:", error);
+}
 
-// At the end of your index.js file
 export default app;
