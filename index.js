@@ -22,6 +22,9 @@ async function connectToDatabase() {
   return db;
 }
 
+app.set('views', path.join(__dirname, 'views'));
+app.set('view engine', 'ejs');
+
 // Define Blog Schema and Model
 const blogSchema = new mongoose.Schema({
   authorfname: String,
@@ -128,3 +131,6 @@ connectToDatabase().then(() => {
 }).catch((err) => {
   console.error("Error connecting to MongoDB", err);
 });
+
+// At the end of your index.js file
+export default app;
