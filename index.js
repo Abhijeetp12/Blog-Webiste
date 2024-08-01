@@ -146,6 +146,5 @@ if (process.env.VERCEL !== '1') {
     console.log(`Server running on port ${port}`);
   });
 }
-//8
-let a;
+
 export default app;
