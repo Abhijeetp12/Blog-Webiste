@@ -1,10 +1,11 @@
-import express from "express";
-import bodyParser from "body-parser";
-import mongoose from "mongoose";
+import express from 'express';
+import bodyParser from 'body-parser';
+import mongoose from 'mongoose';
 import { config } from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+// Load environment variables from .env file
 config();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,7 @@ mongoose.set('strictQuery', false);
 
 let cachedDb = null;
 
+// Connect to the MongoDB database
 async function connectToDatabase() {
   if (cachedDb) {
     return cachedDb;
@@ -36,6 +38,7 @@ async function connectToDatabase() {
   }
 }
 
+// Define the blog schema
 const blogSchema = new mongoose.Schema({
   authorfname: String,
   authorlname: String,
@@ -45,12 +48,15 @@ const blogSchema = new mongoose.Schema({
 
 const Blog = mongoose.model('Blog', blogSchema);
 
-app.use(express.static("public"));
+// Middleware for serving static files and parsing URL-encoded data
+app.use(express.static(path.join(__dirname, 'public')));
 app.use(bodyParser.urlencoded({ extended: true }));
 
+// Set up EJS as the templating engine
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
+// Middleware to ensure database connection before handling requests
 app.use(async (req, res, next) => {
   try {
     await connectToDatabase();
@@ -60,33 +66,37 @@ app.use(async (req, res, next) => {
   }
 });
 
+// Route to display all blogs
 app.get("/", async (req, res) => {
   try {
     const blogs = await Blog.find().lean().exec();
-    res.render("index.ejs", { blogs });
+    res.render("index", { blogs });
   } catch (error) {
     console.error("Error fetching blogs:", error);
     res.status(500).send("Error fetching blogs");
   }
 });
 
+// Route to render the create blog form
 app.get("/create", (req, res) => {
-  res.render("create.ejs", { signal: 'createpost' });
+  res.render("create", { signal: 'createpost' });
 });
 
+// Route to view a single blog
 app.get("/view/:id", async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id).lean().exec();
     if (!blog) {
       return res.status(404).send("Blog not found");
     }
-    res.render("blog.ejs", { blog });
+    res.render("blog", { blog });
   } catch (error) {
     console.error("Error fetching blog:", error);
     res.status(500).send("Error fetching blog");
   }
 });
 
+// Route to handle blog creation
 app.post("/submit", async (req, res) => {
   try {
     const newBlog = new Blog({
@@ -103,19 +113,21 @@ app.post("/submit", async (req, res) => {
   }
 });
 
+// Route to render the edit form for a blog
 app.get("/edit/:id", async (req, res) => {
   try {
     const blog = await Blog.findById(req.params.id).lean().exec();
     if (!blog) {
       return res.status(404).send("Blog not found");
     }
-    res.render("create.ejs", { signal: 'editpost', blog });
+    res.render("create", { signal: 'editpost', blog });
   } catch (error) {
     console.error("Error fetching blog for edit:", error);
     res.status(500).send("Error fetching blog for edit");
   }
 });
 
+// Route to handle blog updates
 app.post("/edit/:id", async (req, res) => {
   try {
     await Blog.findByIdAndUpdate(req.params.id, {
@@ -131,6 +143,7 @@ app.post("/edit/:id", async (req, res) => {
   }
 });
 
+// Route to handle blog deletion
 app.post("/delete/:id", async (req, res) => {
   try {
     await Blog.findByIdAndDelete(req.params.id);
@@ -141,6 +154,7 @@ app.post("/delete/:id", async (req, res) => {
   }
 });
 
+// Start the server
 if (process.env.VERCEL !== '1') {
   app.listen(port, () => {
     console.log(`Server running on port ${port}`);
